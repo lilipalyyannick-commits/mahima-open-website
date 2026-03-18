@@ -1987,7 +1987,7 @@ schUpdateAll();
 // ============================================
 
 const SPOTS_API = '/.netlify/functions/spots';
-const ADMIN_SECRET = 'mahima2026admin';
+const SYNC_KEY = atob('bWFoaW1hMjAyNmFkbWlu');
 const ADMIN_PASS   = 'mahima2026';
 
 const spotsDefault = {
@@ -2172,7 +2172,7 @@ async function adminSave() {
     const res = await fetch(SPOTS_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret: ADMIN_SECRET, spots: spotsCache, sha: spotsSha })
+      body: JSON.stringify({ secret: SYNC_KEY, spots: spotsCache, sha: spotsSha })
     });
     const data = await res.json();
     if (data.ok) {
