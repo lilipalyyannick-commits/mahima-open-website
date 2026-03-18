@@ -1,0 +1,46 @@
+{
+  "padel-beginners": {
+    "registered": 0,
+    "max": 16
+  },
+  "padel-bronze-men": {
+    "registered": 0,
+    "max": 16
+  },
+  "padel-bronze-ladies": {
+    "registered": 0,
+    "max": 16
+  },
+  "padel-silver-men": {
+    "registered": 0,
+    "max": 16
+  },
+  "padel-silver-ladies": {
+    "registered": 0,
+    "max": 16
+  },
+  "padel-gold": {
+    "registered": 0,
+    "max": 16
+  },
+  "padel-platinum": {
+    "registered": 0,
+    "max": 16
+  },
+  "tennis-int-singles": {
+    "registered": 0,
+    "max": 8
+  },
+  "tennis-int-doubles": {
+    "registered": 0,
+    "max": 16
+  },
+  "tennis-adv-singles": {
+    "registered": 0,
+    "max": 8
+  },
+  "tennis-adv-doubles": {
+    "registered": 0,
+    "max": 16
+  }
+}
