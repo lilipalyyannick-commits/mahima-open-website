@@ -1982,16 +1982,14 @@ document.querySelectorAll('.sch-nav-tab').forEach(tab=>{
 schUpdateAll();
 
 // ============================================
-// SPOTS TRACKER SYSTEM
+// ============================================
+// SPOTS TRACKER SYSTEM — GitHub-synced
 // ============================================
 
-const SPOTS_KEY = 'mahima_open_spots_v1';
+const SPOTS_API = '/.netlify/functions/spots';
+const ADMIN_SECRET = 'mahima2026admin';
+const ADMIN_PASS   = 'mahima2026';
 
-// Default data — counts are PARTICIPANTS (not teams)
-// Padel: 8 teams × 2 = 16 max each
-// Tennis singles: 8 players max each
-// Tennis doubles: 8 teams × 2 = 16 max each
-// Total capacity: 7×16 + 2×8 + 2×16 = 112 + 16 + 32 = 160
 const spotsDefault = {
   'padel-beginners':     { registered: 0, max: 16 },
   'padel-bronze-men':    { registered: 0, max: 16 },
@@ -2006,24 +2004,27 @@ const spotsDefault = {
   'tennis-adv-doubles':  { registered: 0, max: 16 },
 };
 
-function spotsLoad() {
-  try {
-    const raw = localStorage.getItem(SPOTS_KEY);
-    if (!raw) return JSON.parse(JSON.stringify(spotsDefault));
-    const saved = JSON.parse(raw);
-    // Merge with defaults in case new categories were added
-    return Object.assign(JSON.parse(JSON.stringify(spotsDefault)), saved);
-  } catch(e) { return JSON.parse(JSON.stringify(spotsDefault)); }
-}
+// In-memory cache so admin adjustments work before saving
+let spotsCache = JSON.parse(JSON.stringify(spotsDefault));
+let spotsSha = null; // GitHub file SHA needed for updates
 
-function spotsSave(data) {
-  localStorage.setItem(SPOTS_KEY, JSON.stringify(data));
+// Fetch spots from Netlify function (reads spots.json via GitHub API)
+async function spotsInit() {
+  try {
+    const res = await fetch(SPOTS_API);
+    if (!res.ok) throw new Error('fetch failed');
+    const { spots, sha } = await res.json();
+    spotsCache = Object.assign(JSON.parse(JSON.stringify(spotsDefault)), spots);
+    spotsSha = sha;
+  } catch(e) {
+    // Fallback to defaults — site still works, just won't show counts
+    spotsCache = JSON.parse(JSON.stringify(spotsDefault));
+  }
+  spotsRender();
 }
 
 function spotsRender() {
-  const data = spotsLoad();
-
-  // Track totals for hero bar
+  const data = spotsCache;
   let totalReg = 0, totalMax = 0;
 
   document.querySelectorAll('.cat-card[data-cat-id]').forEach(card => {
@@ -2047,13 +2048,12 @@ function spotsRender() {
       if (signupEl) {
         signupEl.classList.remove('waitlist');
         signupEl.textContent = 'Sign Up →';
-        signupEl.href = signupEl.dataset.href || signupEl.href;
+        if (signupEl.dataset.href) signupEl.href = signupEl.dataset.href;
       }
       return;
     }
 
     const barClass = isFull ? 'full' : isAlmost ? 'almost' : '';
-    const spotsLeft = max - reg;
     const labelText = isFull
       ? `Category full · ${max} ${unit}`
       : `${reg} / ${max} ${unit} registered`;
@@ -2069,7 +2069,7 @@ function spotsRender() {
     if (signupEl) {
       if (isFull) {
         signupEl.classList.add('waitlist');
-        signupEl.dataset.href = signupEl.href || '';
+        if (!signupEl.dataset.href) signupEl.dataset.href = signupEl.getAttribute('href') || '';
         signupEl.removeAttribute('href');
         signupEl.textContent = 'Category Full';
       } else {
@@ -2080,7 +2080,6 @@ function spotsRender() {
     }
   });
 
-  // Update hero bar
   heroBarRender(totalReg, totalMax);
 }
 
@@ -2089,11 +2088,9 @@ function heroBarRender(reg, max) {
   const label = document.getElementById('hero-spots-label');
   const counter = document.getElementById('hero-spots-counter');
   if (!bar || !label) return;
-
   const pct = max > 0 ? Math.round((reg / max) * 100) : 0;
   bar.style.width = pct + '%';
   bar.className = 'hero-bar-fill' + (pct >= 100 ? ' full' : pct >= 75 ? ' almost' : '');
-
   if (reg === 0) {
     label.textContent = `${max} spots available`;
     if (counter) counter.textContent = '';
@@ -2108,74 +2105,94 @@ function heroBarRender(reg, max) {
 
 // ---- Admin panel ----
 
-const ADMIN_PASS = 'mahima2026';
 let adminUnlocked = false;
 
-function adminBuild() {
-  const data = spotsLoad();
-  const categories = [
-    { id: 'padel-beginners',     label: 'Beginners Mixed', sport: 'PADEL',  max: 16 },
-    { id: 'padel-bronze-men',    label: 'Bronze Men',      sport: 'PADEL',  max: 16 },
-    { id: 'padel-bronze-ladies', label: 'Bronze Ladies',   sport: 'PADEL',  max: 16 },
-    { id: 'padel-silver-men',    label: 'Silver Men',      sport: 'PADEL',  max: 16 },
-    { id: 'padel-silver-ladies', label: 'Silver Ladies',   sport: 'PADEL',  max: 16 },
-    { id: 'padel-gold',          label: 'Gold',            sport: 'PADEL',  max: 16 },
-    { id: 'padel-platinum',      label: 'Platinum',        sport: 'PADEL',  max: 16 },
-    { id: 'tennis-int-singles',  label: 'Int. Singles',    sport: 'TENNIS', max: 8  },
-    { id: 'tennis-int-doubles',  label: 'Int. Doubles',    sport: 'TENNIS', max: 16 },
-    { id: 'tennis-adv-singles',  label: 'Adv. Singles',    sport: 'TENNIS', max: 8  },
-    { id: 'tennis-adv-doubles',  label: 'Adv. Doubles',    sport: 'TENNIS', max: 16 },
-  ];
+const CATEGORIES = [
+  { id: 'padel-beginners',     label: 'Beginners Mixed', sport: 'PADEL',  max: 16 },
+  { id: 'padel-bronze-men',    label: 'Bronze Men',      sport: 'PADEL',  max: 16 },
+  { id: 'padel-bronze-ladies', label: 'Bronze Ladies',   sport: 'PADEL',  max: 16 },
+  { id: 'padel-silver-men',    label: 'Silver Men',      sport: 'PADEL',  max: 16 },
+  { id: 'padel-silver-ladies', label: 'Silver Ladies',   sport: 'PADEL',  max: 16 },
+  { id: 'padel-gold',          label: 'Gold',            sport: 'PADEL',  max: 16 },
+  { id: 'padel-platinum',      label: 'Platinum',        sport: 'PADEL',  max: 16 },
+  { id: 'tennis-int-singles',  label: 'Int. Singles',    sport: 'TENNIS', max: 8  },
+  { id: 'tennis-int-doubles',  label: 'Int. Doubles',    sport: 'TENNIS', max: 16 },
+  { id: 'tennis-adv-singles',  label: 'Adv. Singles',    sport: 'TENNIS', max: 8  },
+  { id: 'tennis-adv-doubles',  label: 'Adv. Doubles',    sport: 'TENNIS', max: 16 },
+];
 
+function adminBuild() {
   const panel = document.getElementById('admin-panel');
-  const sports = ['PADEL', 'TENNIS'];
   let html = `
     <div class="admin-header">
       <span class="admin-header-title">Spots Admin</span>
       <button class="admin-close" onclick="adminClose()">×</button>
     </div>`;
 
-  sports.forEach(sport => {
+  ['PADEL','TENNIS'].forEach(sport => {
     html += `<div class="admin-section-label">${sport}</div>`;
-    categories.filter(c => c.sport === sport).forEach(cat => {
-      const entry = data[cat.id] || { registered: 0, max: cat.max };
+    CATEGORIES.filter(c => c.sport === sport).forEach(cat => {
+      const reg = (spotsCache[cat.id] || {}).registered || 0;
       html += `
         <div class="admin-row">
           <span class="admin-row-name">${cat.label}</span>
           <div class="admin-counter">
-            <button class="admin-btn" onclick="adminAdjust('${cat.id}', -1)">−</button>
-            <span class="admin-count-display" id="adm-${cat.id}">${entry.registered}</span>
+            <button class="admin-btn" onclick="adminAdjust('${cat.id}',-1)">−</button>
+            <span class="admin-count-display" id="adm-${cat.id}">${reg}</span>
             <span class="admin-max-display">/ ${cat.max}</span>
-            <button class="admin-btn" onclick="adminAdjust('${cat.id}', 1)">+</button>
+            <button class="admin-btn" onclick="adminAdjust('${cat.id}',1)">+</button>
           </div>
         </div>`;
     });
   });
 
   html += `
-    <button class="admin-save-btn" onclick="adminSave()">Save & Update</button>
-    <div class="admin-saved-msg" id="admin-saved-msg">✓ Updated</div>`;
+    <button class="admin-save-btn" onclick="adminSave()">Save & Sync</button>
+    <div class="admin-saved-msg" id="admin-saved-msg"></div>`;
 
   panel.innerHTML = html;
 }
 
 function adminAdjust(id, delta) {
-  const data = spotsLoad();
-  if (!data[id]) return;
-  const max = data[id].max;
-  data[id].registered = Math.max(0, Math.min(max, (data[id].registered || 0) + delta));
-  spotsSave(data);
+  if (!spotsCache[id]) return;
+  const cat = CATEGORIES.find(c => c.id === id);
+  const max = cat ? cat.max : 16;
+  spotsCache[id].registered = Math.max(0, Math.min(max, (spotsCache[id].registered || 0) + delta));
   const el = document.getElementById('adm-' + id);
-  if (el) el.textContent = data[id].registered;
+  if (el) el.textContent = spotsCache[id].registered;
 }
 
-function adminSave() {
-  spotsRender();
+async function adminSave() {
+  const btn = document.querySelector('.admin-save-btn');
   const msg = document.getElementById('admin-saved-msg');
-  if (msg) {
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(SPOTS_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: ADMIN_SECRET, spots: spotsCache, sha: spotsSha })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      spotsSha = data.sha; // update SHA for next save
+      spotsRender();
+      msg.textContent = '✓ Saved — visible to everyone';
+      msg.style.display = 'block';
+      msg.style.color = 'var(--khaki)';
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch(e) {
+    msg.textContent = '✗ Save failed — check connection';
     msg.style.display = 'block';
-    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+    msg.style.color = '#e07070';
   }
+
+  btn.textContent = 'Save & Sync';
+  btn.disabled = false;
+  setTimeout(() => { msg.style.display = 'none'; }, 3000);
 }
 
 function adminOpen() {
@@ -2192,7 +2209,7 @@ function adminClose() {
   document.getElementById('admin-panel').classList.remove('open');
 }
 
-// Secret trigger: type "admin" anywhere on page
+// Trigger: type "admin" on keyboard
 let adminBuffer = '';
 document.addEventListener('keydown', e => {
   adminBuffer += e.key.toLowerCase();
@@ -2200,7 +2217,7 @@ document.addEventListener('keydown', e => {
   if (adminBuffer === 'admin') { adminOpen(); adminBuffer = ''; }
 });
 
-// Also: clicking the logo 5 times fast opens admin
+// Trigger: click logo 5× fast
 let logoClickCount = 0, logoClickTimer;
 document.querySelector('.logo-icon').addEventListener('click', () => {
   logoClickCount++;
@@ -2209,8 +2226,8 @@ document.querySelector('.logo-icon').addEventListener('click', () => {
   if (logoClickCount >= 5) { logoClickCount = 0; adminOpen(); }
 });
 
-// Init on load
-spotsRender();
+// Init — fetch from GitHub on page load
+spotsInit();
 </script>
 
 <!-- Admin Panel -->
