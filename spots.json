@@ -1,6 +1,6 @@
 {
   "padel-beginners": {
-    "registered": 6,
+    "registered": 8,
     "max": 16
   },
   "padel-bronze-men": {
@@ -8,7 +8,7 @@
     "max": 16
   },
   "padel-bronze-ladies": {
-    "registered": 6,
+    "registered": 8,
     "max": 16
   },
   "padel-silver-men": {
@@ -36,7 +36,7 @@
     "max": 16
   },
   "tennis-adv-singles": {
-    "registered": 6,
+    "registered": 7,
     "max": 8
   },
   "tennis-adv-doubles": {
