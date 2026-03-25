@@ -8,11 +8,11 @@
     "max": 16
   },
   "padel-bronze-ladies": {
-    "registered": 8,
+    "registered": 10,
     "max": 16
   },
   "padel-silver-men": {
-    "registered": 4,
+    "registered": 8,
     "max": 16
   },
   "padel-silver-ladies": {
@@ -20,7 +20,7 @@
     "max": 16
   },
   "padel-gold": {
-    "registered": 4,
+    "registered": 6,
     "max": 16
   },
   "padel-platinum": {
