@@ -12,7 +12,7 @@
     "max": 16
   },
   "padel-silver-men": {
-    "registered": 8,
+    "registered": 12,
     "max": 16
   },
   "padel-silver-ladies": {
@@ -28,7 +28,7 @@
     "max": 16
   },
   "tennis-int-singles": {
-    "registered": 2,
+    "registered": 3,
     "max": 8
   },
   "tennis-int-doubles": {
